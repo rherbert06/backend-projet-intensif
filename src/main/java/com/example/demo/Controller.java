@@ -2,18 +2,17 @@ package com.example.demo;
 
 import com.example.demo.Database.Event;
 import com.example.demo.Database.EventRepository;
+import com.example.demo.EventJSON.EventJSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
+
 import javax.annotation.PostConstruct;
 
-import java.util.Random;
-
-
-// JPA hibernate
 
 @RestController
 @RequestMapping(value = "/ecociteTeam")
@@ -32,7 +31,32 @@ public class Controller {
     @RequestMapping(value = "/hello", method = RequestMethod.GET)
     public String Hello() {
         LOG.info("--- HELLO ---");
+        return "Hello !";
+    }
 
+    @RequestMapping(value = "/lastEvent", method = RequestMethod.GET)
+    public String fetchLastEvent() {
+        return repository.findTopByOrderByIdDesc().toString();
+    }
+
+    @RequestMapping(value = "/last50Event", method = RequestMethod.GET)
+    public String fetchLast50Event() {
+        return repository.findTop50ByOrderByIdDesc().toString();
+    }
+
+    @RequestMapping(value = "/newEvent", method = RequestMethod.POST)
+    public void createNewEvent(@RequestBody EventJSON json) {
+        LOG.info("-- newEvent --");
+
+        int n1 = Integer.parseInt(json.getValues().getValue1());
+        int n2 = Integer.parseInt(json.getValues().getValue2());
+        int n3 = Integer.parseInt(json.getValues().getValue3());
+
+        repository.save(new Event( n1, n2, n3));
+    }
+
+    @RequestMapping(value = "/exampleDB", method = RequestMethod.GET)
+    public void exampleDataBase() {
         // save a couple of events
         repository.save(new Event(50, 50, 50));
         repository.save(new Event(0, 50, 50));
@@ -57,34 +81,5 @@ public class Controller {
                     LOG.info(customer.toString());
                     LOG.info("");
                 });
-
-        // fetch last event
-        LOG.info("Last event :");
-        LOG.info("--------------------------------------------");
-        LOG.info(repository.findTopByOrderByIdDesc().toString());
-        LOG.info("");
-
-        return "Hello !";
-    }
-
-
-    @RequestMapping(value = "/lastEvent", method = RequestMethod.GET)
-    public String fetchLastEvent() {
-        return repository.findTopByOrderByIdDesc().toString();
-    }
-
-    @RequestMapping(value = "/last50Event", method = RequestMethod.GET)
-    public String fetchLast50Event() {
-        return repository.findTop50ByOrderByIdDesc().toString();
-    }
-
-    @RequestMapping(value = "/newEvent", method = RequestMethod.POST)
-    public void createNewEvent( ) {
-        LOG.info("-- newEvent --");
-        Random rand = new Random();
-        int n1 = (rand.nextInt(50)%2) * 50;
-        int n2 = (rand.nextInt(50)%2) * 50;
-        int n3 = rand.nextInt(50);
-        repository.save(new Event( n1, n2, n3));
     }
 }

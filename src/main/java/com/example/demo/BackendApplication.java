@@ -11,8 +11,6 @@ import org.springframework.context.annotation.Bean;
 
 @SpringBootApplication
 public class BackendApplication {
-    private static final Logger LOG = LoggerFactory.getLogger(Controller.class);
-
     public static void main(String[] args) {
         SpringApplication.run(BackendApplication.class, args);
     }
