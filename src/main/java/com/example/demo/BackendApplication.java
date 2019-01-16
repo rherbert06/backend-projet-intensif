@@ -13,6 +13,9 @@ import org.springframework.context.annotation.Bean;
 public class BackendApplication {
     public static void main(String[] args) {
         SpringApplication.run(BackendApplication.class, args);
+
+        TestNetwork test = new TestNetwork();
+        test.displayServerAddr();
     }
 }
 
