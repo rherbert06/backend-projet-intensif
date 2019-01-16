@@ -6,12 +6,12 @@ import com.example.demo.EventJSON.EventJSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Date;
 
 
 @RestController
@@ -42,6 +42,24 @@ public class Controller {
     @RequestMapping(value = "/last50Event", method = RequestMethod.GET)
     public String fetchLast50Event() {
         return repository.findTop50ByOrderByIdDesc().toString();
+    }
+
+    @RequestMapping(value = "/getMeanOverDuration", method = RequestMethod.GET)
+    public String getMeanOverDuration(@RequestParam("duration") String sDuration) {
+        int duration = Integer.parseInt(sDuration);
+        double mean = 0;
+
+        List<Event> events = repository.findByDateAfter(new Date(System.currentTimeMillis() - duration * 10000));
+
+        for (Event e : events){
+            mean += e.getValue1();
+            mean += e.getValue2();
+            mean += e.getValue3();
+        }
+
+        mean /= events.size();
+
+        return "{mean:" + mean + "}";
     }
 
     @RequestMapping(value = "/newEvent", method = RequestMethod.POST)

@@ -4,8 +4,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 import javax.persistence.SequenceGenerator;
-import java.sql.Date;
-import java.util.Calendar;
+import java.util.Date;
 
 @Entity
 public class Event {
@@ -22,12 +21,28 @@ public class Event {
         super();
     }
 
+    public int getValue1() {
+        return value1;
+    }
+
+    public int getValue2() {
+        return value2;
+    }
+
+    public int getValue3() {
+        return value3;
+    }
+
+    public Date getDate() {
+        return date;
+    }
+
     public Event(int value1, int value2, int value3) {
         super();
         this.value1 = value1;
         this.value2 = value2;
         this.value3 = value3;
-        this.date = new java.sql.Date(Calendar.getInstance().getTime().getTime());;
+        this.date = new Date();
     }
 
     public Long getId() {

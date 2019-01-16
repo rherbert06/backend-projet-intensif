@@ -1,6 +1,5 @@
-package com.example.demo;
+/*package com.example.demo;
 
-import javafx.application.Application;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,4 +51,4 @@ public class TestNetwork implements EnvironmentAware {
             throw new RuntimeException(e);
         }
     }
-}
+} */
