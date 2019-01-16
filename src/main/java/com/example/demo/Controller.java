@@ -27,7 +27,6 @@ public class Controller {
         LOG.info("Backend is running...");
     }
 
-
     @RequestMapping(value = "/hello", method = RequestMethod.GET)
     public String Hello() {
         LOG.info("--- HELLO ---");
@@ -45,21 +44,68 @@ public class Controller {
     }
 
     @RequestMapping(value = "/getMeanOverDuration", method = RequestMethod.GET)
-    public String getMeanOverDuration(@RequestParam("duration") String sDuration) {
+    public int getScoreOfTheDay(@RequestParam("duration") String sDuration) {
         int duration = Integer.parseInt(sDuration);
-        double mean = 0;
+        double mean1 = 0;
+        double mean2 = 0;
+        double mean3 = 0;
 
-        List<Event> events = repository.findByDateAfter(new Date(System.currentTimeMillis() - duration * 10000));
 
-        for (Event e : events){
-            mean += e.getValue1();
-            mean += e.getValue2();
-            mean += e.getValue3();
+        if (repository.count() < 2) {
+            return -1; // Not enough event in DB
         }
 
-        mean /= events.size();
 
-        return "{mean:" + mean + "}";
+        if (new Date(System.currentTimeMillis() - duration * 1000).getTime() < repository.findById(1L).get().getDate().getTime()) {
+            return -1; // Duration too high
+        }
+
+        List<Event> events = repository.findByDateAfter(new Date(System.currentTimeMillis() - duration * 1000));
+
+        Event lastEvent = null;
+
+        for (Event e : events) {
+            if (lastEvent == null ) { // First event of the list
+                lastEvent = repository.findById(e.getId()-1).get();
+
+                mean1 += lastEvent.getValue1() * (e.getDate().getTime() - (new Date(System.currentTimeMillis() - duration * 1000).getTime()));
+                mean2 += lastEvent.getValue2() * (e.getDate().getTime() - (new Date(System.currentTimeMillis() - duration * 1000).getTime()));
+                mean3 += lastEvent.getValue3() * (e.getDate().getTime() - (new Date(System.currentTimeMillis() - duration * 1000).getTime()));
+                lastEvent = e;
+            } else {
+                mean1 += lastEvent.getValue1() * (e.getDate().getTime() - lastEvent.getDate().getTime());
+                mean2 += lastEvent.getValue2() * (e.getDate().getTime() - lastEvent.getDate().getTime());
+                mean3 += lastEvent.getValue3() * (e.getDate().getTime() - lastEvent.getDate().getTime());
+                lastEvent = e;
+            }
+        }
+
+        if (lastEvent == null) { // Mean that during last period of time no event were registered
+            lastEvent = repository.findTopByOrderByIdDesc();
+            mean1 += lastEvent.getValue1() * ((new Date(System.currentTimeMillis())).getTime() - (new Date(System.currentTimeMillis() - duration * 1000).getTime()));
+            mean2 += lastEvent.getValue2() * ((new Date(System.currentTimeMillis())).getTime() - (new Date(System.currentTimeMillis() - duration * 1000).getTime()));
+            mean3 += lastEvent.getValue3() * ((new Date(System.currentTimeMillis())).getTime() - (new Date(System.currentTimeMillis() - duration * 1000).getTime()));
+        } else {
+            mean1 += lastEvent.getValue1() * ((new Date(System.currentTimeMillis())).getTime() - lastEvent.getDate().getTime());
+            mean2 += lastEvent.getValue2() * ((new Date(System.currentTimeMillis())).getTime() - lastEvent.getDate().getTime());
+            mean3 += lastEvent.getValue3() * ((new Date(System.currentTimeMillis())).getTime() - lastEvent.getDate().getTime());
+        }
+
+
+        mean1 /=  100 * duration * 1000;
+        mean2 /=  100 * duration * 1000;
+        mean3 /=  100 * duration * 1000;
+
+        double score;
+
+        if (mean1 == 0 && mean2 == 0 && mean3 == 0) {
+            score = 100;
+        } else {
+            score =  ((mean1 + mean2 + mean3) * 100)/3;
+            score = 100-score;
+        }
+
+        return (int) score;
     }
 
     @RequestMapping(value = "/newEvent", method = RequestMethod.POST)
