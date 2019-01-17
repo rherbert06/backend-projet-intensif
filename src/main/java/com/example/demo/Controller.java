@@ -22,6 +22,9 @@ public class Controller {
     private static final Logger LOG = LoggerFactory.getLogger(Controller.class);
     private static boolean taskRunning = false;
 
+    private JsonBuilderFactory factory = Json.createBuilderFactory(null);
+
+
     @Autowired
     EventRepository repository;
 
@@ -33,9 +36,10 @@ public class Controller {
         taskExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                Event e;
                 try {
                     while (true){
-                        Event e = repository.findTopByOrderByIdDesc();
+                        e = repository.findTopByOrderByIdDesc();
                         repository.save(new Event(e.getValue1(), e.getValue2(),e.getValue3()));
                         LOG.info("-- AYYY LMAO ASYNCHRONOUS AND SHIT --");
                         Thread.sleep(3000);
@@ -96,7 +100,6 @@ public class Controller {
             }
         }
 
-        JsonBuilderFactory factory = Json.createBuilderFactory(null);
         JsonObject value = factory.createObjectBuilder()
                 .add("leds", factory.createObjectBuilder()
                 .add("led1", led1conso)
@@ -115,7 +118,6 @@ public class Controller {
     public String fetchLastEvent() {
         Event e = repository.findTopByOrderByIdDesc();
 
-        JsonBuilderFactory factory = Json.createBuilderFactory(null);
         JsonObject value = factory.createObjectBuilder()
                 .add("leds", factory.createObjectBuilder()
                     .add("led1", e.getValue1())
@@ -130,11 +132,12 @@ public class Controller {
     @RequestMapping(value = "/getMeanOverDuration", method = RequestMethod.GET)
     public String getScoreForDuration(@RequestParam("duration") String sDuration) {
         int duration = Integer.parseInt(sDuration);
-        JsonBuilderFactory factory = Json.createBuilderFactory(null);
         JsonObject value;
         double mean1 = 0;
         double mean2 = 0;
         double mean3 = 0;
+
+        long systemTime = System.currentTimeMillis();
 
 
         if (repository.count() < 1) {
@@ -145,14 +148,14 @@ public class Controller {
         }
 
 
-        if (new Date(System.currentTimeMillis() - duration * 1000).getTime() < repository.findTopByOrderById().get(0).getDate().getTime()) {
+        if (new Date(systemTime - duration * 1000).getTime() < repository.findTopByOrderById().get(0).getDate().getTime()) {
             value = factory.createObjectBuilder()
                     .add("error", "Durée spécifiée trop longue")
                     .build();
             return value.toString();
         }
 
-        List<Event> events = repository.findByDateAfter(new Date(System.currentTimeMillis() - duration * 1000));
+        List<Event> events = repository.findByDateAfter(new Date(systemTime - duration * 1000));
 
         Event lastEvent = null;
 
@@ -162,7 +165,7 @@ public class Controller {
 
             if (lastEvent == null ) { // First event of the list
                 lastEvent = repository.findById(e.getId()-1).get();
-                long timeLapse = new Date(System.currentTimeMillis() - duration * 1000).getTime();
+                long timeLapse = new Date(systemTime - duration * 1000).getTime();
                 long factor = eventDateTime - timeLapse;
 
                 mean1 += lastEvent.getValue1() * factor;
@@ -178,8 +181,8 @@ public class Controller {
             lastEvent = e;
         }
 
-        long currentTime = new Date(System.currentTimeMillis()).getTime();
-        long timeLapse = new Date(System.currentTimeMillis() - duration * 1000).getTime();
+        long currentTime = new Date(systemTime).getTime();
+        long timeLapse = new Date(systemTime - duration * 1000).getTime();
 
 
         if (lastEvent == null) { // Mean that during last period of time no event were registered
