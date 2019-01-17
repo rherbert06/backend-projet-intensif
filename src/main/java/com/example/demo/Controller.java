@@ -6,21 +6,47 @@ import com.example.demo.EventJSON.EventJSON;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
-import java.util.Calendar;
 import java.util.List;
 import java.util.Date;
+import javax.json.*;
 
 
 @RestController
 @RequestMapping(value = "/ecociteTeam")
 public class Controller {
     private static final Logger LOG = LoggerFactory.getLogger(Controller.class);
+    private static boolean taskRunning = false;
 
     @Autowired
     EventRepository repository;
+
+    @Qualifier("applicationTaskExecutor")
+    @Autowired
+    private TaskExecutor taskExecutor;
+
+    public void executeAsynchronously() {
+        taskExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (true){
+                        Event e = repository.findTopByOrderByIdDesc();
+                        repository.save(new Event(e.getValue1(), e.getValue2(),e.getValue3()));
+                        LOG.info("-- AYYY LMAO ASYNCHRONOUS AND SHIT --");
+                        Thread.sleep(3000);
+                    }
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+            }
+        });
+
+    }
 
     @PostConstruct
     public void launchApp() {
@@ -33,31 +59,97 @@ public class Controller {
         return "Hello !";
     }
 
+    @RequestMapping(value = "/events", method = RequestMethod.GET)
+    public String getAllEvents() {
+        List<Event> events = repository.findAll();
+
+        int led1conso = 0;
+        int led2conso = 0;
+        int led3conso = 0;
+
+        int led1clicks = 0;
+        int led2clicks = 0;
+        int led3clicks = 0;
+
+        int prev1 = -1;
+        int prev2 = -1;
+        int prev3 = -1;
+
+        for (Event e : events){
+            led1conso += e.getValue1();
+            led2conso += e.getValue2();
+            led3conso += e.getValue3();
+
+            if (e.getValue1() != prev1) {
+                led1clicks++;
+                prev1 = e.getValue1();
+            }
+
+            if (e.getValue2() != prev2) {
+                led2clicks++;
+                prev2 = e.getValue2();
+            }
+
+            if (e.getValue3() != prev3) {
+                led3clicks++;
+                prev3 = e.getValue3();
+            }
+        }
+
+        JsonBuilderFactory factory = Json.createBuilderFactory(null);
+        JsonObject value = factory.createObjectBuilder()
+                .add("leds", factory.createObjectBuilder()
+                .add("led1", led1conso)
+                .add("led2", led2conso)
+                .add("led3", led3conso))
+                .add("clicks", factory.createObjectBuilder()
+                        .add("led1", led1clicks)
+                        .add("led2", led2clicks)
+                        .add("led3", led3clicks))
+                .build();
+
+        return value.toString();
+    }
+
     @RequestMapping(value = "/lastEvent", method = RequestMethod.GET)
     public String fetchLastEvent() {
-        return repository.findTopByOrderByIdDesc().toString();
+        Event e = repository.findTopByOrderByIdDesc();
+
+        JsonBuilderFactory factory = Json.createBuilderFactory(null);
+        JsonObject value = factory.createObjectBuilder()
+                .add("leds", factory.createObjectBuilder()
+                    .add("led1", e.getValue1())
+                    .add("led2", e.getValue2())
+                    .add("led3", e.getValue3()))
+                .build();
+
+        return value.toString();
     }
 
-    @RequestMapping(value = "/last50Event", method = RequestMethod.GET)
-    public String fetchLast50Event() {
-        return repository.findTop50ByOrderByIdDesc().toString();
-    }
 
     @RequestMapping(value = "/getMeanOverDuration", method = RequestMethod.GET)
-    public int getScoreOfTheDay(@RequestParam("duration") String sDuration) {
+    public String getScoreForDuration(@RequestParam("duration") String sDuration) {
         int duration = Integer.parseInt(sDuration);
+        JsonBuilderFactory factory = Json.createBuilderFactory(null);
+        JsonObject value;
         double mean1 = 0;
         double mean2 = 0;
         double mean3 = 0;
 
 
-        if (repository.count() < 2) {
-            return -1; // Not enough event in DB
+        if (repository.count() < 1) {
+            value = factory.createObjectBuilder()
+                    .add("error", "Pas assez de données pour la période")
+                    .build();
+            return value.toString();
         }
 
 
-        if (new Date(System.currentTimeMillis() - duration * 1000).getTime() < repository.findById(1L).get().getDate().getTime()) {
-            return -1; // Duration too high
+        if (new Date(System.currentTimeMillis() - duration * 1000).getTime() < repository.findTopByOrderById().get(0).getDate().getTime()) {
+            value = factory.createObjectBuilder()
+                    .add("error", "Durée spécifiée trop longue")
+                    .build();
+            return value.toString();
         }
 
         List<Event> events = repository.findByDateAfter(new Date(System.currentTimeMillis() - duration * 1000));
@@ -110,15 +202,34 @@ public class Controller {
         mean3 /=  100 * duration * 1000;
 
         double score;
+        score =  100 - ((mean1 + mean2 + mean3) * 100)/3;
 
-        if (mean1 == 0 && mean2 == 0 && mean3 == 0) {
-            score = 100;
-        } else {
-            score =  ((mean1 + mean2 + mean3) * 100)/3;
-            score = 100-score;
-        }
+        value = factory.createObjectBuilder()
+                .add("score", score)
+                .build();
 
-        return (int) score;
+        return value.toString();
+    }
+
+    @RequestMapping(value = "/getMeanOverOneMonth", method = RequestMethod.GET)
+    public String getScoreOfTheMonth() {
+        int day = 15;
+        int duration = 30 * day;
+        return getScoreForDuration(Integer.toString(duration));
+    }
+
+    @RequestMapping(value = "/getMeanOverOneyear", method = RequestMethod.GET)
+    public String getScoreOfTheYear() {
+        int day = 15;
+        int duration = 365* day;
+        return getScoreForDuration(Integer.toString(duration));
+    }
+
+    @RequestMapping(value = "/reset", method = RequestMethod.GET)
+    public String reset() {
+        repository.deleteAll();
+        Controller.taskRunning = false;
+        return "Reset OK";
     }
 
     @RequestMapping(value = "/newEvent", method = RequestMethod.POST)
@@ -130,6 +241,11 @@ public class Controller {
         int n3 = Integer.parseInt(json.getValues().getValue3());
 
         repository.save(new Event( n1, n2, n3));
+
+        if (!Controller.taskRunning){
+            executeAsynchronously();
+            Controller.taskRunning = true;
+        }
     }
 
     /**
@@ -142,7 +258,7 @@ public class Controller {
         repository.save(new Event(0, 50, 50));
         repository.save(new Event(0, 0, 50));
         repository.save(new Event(50, 0, 25));
-        repository.save(new Event(50, 50, 10));
+        repository.save(new Event(50, 50, 0));
 
         // fetch all events
         LOG.info("Events found with findAll():");
@@ -161,5 +277,10 @@ public class Controller {
                     LOG.info(customer.toString());
                     LOG.info("");
                 });
+
+        if (!Controller.taskRunning){
+            executeAsynchronously();
+            Controller.taskRunning = true;
+        }
     }
 }

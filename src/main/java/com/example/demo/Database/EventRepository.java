@@ -13,4 +13,10 @@ public interface EventRepository extends CrudRepository<Event, Long> {
 
     // Get events since <date>
     List<Event> findByDateAfter(Date date);
+
+    // Get all events
+    List<Event> findAll();
+
+    // Equivalent to find the last 50 events
+    List<Event>  findTopByOrderById();
 }
