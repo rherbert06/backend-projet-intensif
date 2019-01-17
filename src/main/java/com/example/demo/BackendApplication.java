@@ -8,9 +8,6 @@ import org.springframework.boot.web.servlet.support.SpringBootServletInitializer
 public class BackendApplication extends SpringBootServletInitializer {
     public static void main(String[] args) {
         SpringApplication.run(BackendApplication.class, args);
-
-        /*TestNetwork test = new TestNetwork();
-        test.displayServerAddr();*/
     }
 }
 

@@ -3,13 +3,11 @@ package com.example.demo.Database;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
-import javax.persistence.SequenceGenerator;
 import java.util.Date;
 
 @Entity
 public class Event {
     @Id
-    @SequenceGenerator(name = "mySeqGen", sequenceName = "mySeq", initialValue = 5, allocationSize = 1)
     @GeneratedValue
     private Long id;
     private int value1;
