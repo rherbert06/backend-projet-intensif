@@ -8,8 +8,8 @@ public interface EventRepository extends CrudRepository<Event, Long> {
     // Equivalent to find the last event
     Event findTopByOrderByIdDesc();
 
-    // Equivalent to find the last 50 events
-    List<Event> findTop50ByOrderByIdDesc();
+    // Equivalent to find the last 2 events
+    List<Event> findTop2ByOrderByIdDesc();
 
     // Get events since <date>
     List<Event> findByDateAfter(Date date);
@@ -17,6 +17,7 @@ public interface EventRepository extends CrudRepository<Event, Long> {
     // Get all events
     List<Event> findAll();
 
-    // Equivalent to find the last 50 events
+    // Get the firts event
     List<Event>  findTopByOrderById();
+
 }

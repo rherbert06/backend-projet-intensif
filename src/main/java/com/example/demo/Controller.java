@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.PostConstruct;
 import java.util.List;
-import java.util.Date;
 import javax.json.*;
 
 
@@ -38,7 +37,7 @@ public class Controller {
             public void run() {
                 Event e;
                 try {
-                    while (true){
+                    while (taskRunning){
                         e = repository.findTopByOrderByIdDesc();
                         repository.save(new Event(e.getValue1(), e.getValue2(),e.getValue3()));
                         LOG.info("-- AYYY LMAO ASYNCHRONOUS AND SHIT --");
@@ -118,6 +117,8 @@ public class Controller {
     public String fetchLastEvent() {
         Event e = repository.findTopByOrderByIdDesc();
 
+        if (e == null) return "{\"error\": \"evt null\"}";
+
         JsonObject value = factory.createObjectBuilder()
                 .add("leds", factory.createObjectBuilder()
                     .add("led1", e.getValue1())
@@ -128,87 +129,25 @@ public class Controller {
         return value.toString();
     }
 
+    @RequestMapping(value = "/getMean", method = RequestMethod.GET)
+    public String getScoreFor6s() {
+        return getScore(0);
 
-    @RequestMapping(value = "/getMeanOverDuration", method = RequestMethod.GET)
-    public String getScoreForDuration(@RequestParam("duration") String sDuration) {
-        int duration = Integer.parseInt(sDuration);
+    }
+
+    public String getScore(int duration) {
+        double score = 0;
         JsonObject value;
-        double mean1 = 0;
-        double mean2 = 0;
-        double mean3 = 0;
+        Event e = repository.findTopByOrderByIdDesc();
+        if (e == null) return "{\"score\": \"0\"}";
+        score = (double)(e.getValue1()+e.getValue2()+e.getValue3())/(double)(50+100+300);
+        score = 1.0 - score;
+        score = (int)(score * 100.0);
 
-        long systemTime = System.currentTimeMillis();
-
-
-        if (repository.count() < 1) {
-            value = factory.createObjectBuilder()
-                    .add("error", "Pas assez de données pour la période")
-                    .build();
-            return value.toString();
-        }
-
-
-        if (new Date(systemTime - duration * 1000).getTime() < repository.findTopByOrderById().get(0).getDate().getTime()) {
-            value = factory.createObjectBuilder()
-                    .add("error", "Durée spécifiée trop longue")
-                    .build();
-            return value.toString();
-        }
-
-        List<Event> events = repository.findByDateAfter(new Date(systemTime - duration * 1000));
-
-        Event lastEvent = null;
-
-        for (Event e : events) {
-
-            long eventDateTime = e.getDate().getTime();
-
-            if (lastEvent == null ) { // First event of the list
-                lastEvent = repository.findById(e.getId()-1).get();
-                long timeLapse = new Date(systemTime - duration * 1000).getTime();
-                long factor = eventDateTime - timeLapse;
-
-                mean1 += lastEvent.getValue1() * factor;
-                mean2 += lastEvent.getValue2() * factor;
-                mean3 += lastEvent.getValue3() * factor;
-            } else {
-                long lastEventDateTime = lastEvent.getDate().getTime();
-                long factor = eventDateTime - lastEventDateTime;
-                mean1 += lastEvent.getValue1() * factor;
-                mean2 += lastEvent.getValue2() * factor;
-                mean3 += lastEvent.getValue3() * factor;
-            }
-            lastEvent = e;
-        }
-
-        long currentTime = new Date(systemTime).getTime();
-        long timeLapse = new Date(systemTime - duration * 1000).getTime();
-
-
-        if (lastEvent == null) { // Mean that during last period of time no event were registered
-            lastEvent = repository.findTopByOrderByIdDesc();
-            long factor = currentTime - timeLapse;
-            mean1 += lastEvent.getValue1() * factor;
-            mean2 += lastEvent.getValue2() * factor;
-            mean3 += lastEvent.getValue3() * factor;
-        } else {
-            long lastEventTime = lastEvent.getDate().getTime();
-            long factor = currentTime - lastEventTime;
-            mean1 += lastEvent.getValue1() * factor;
-            mean2 += lastEvent.getValue2() * factor;
-            mean3 += lastEvent.getValue3() * factor;
-        }
-
-
-        mean1 /=  100 * duration * 1000;
-        mean2 /=  100 * duration * 1000;
-        mean3 /=  100 * duration * 1000;
-
-        double score;
-        score =  100 - ((mean1 + mean2 + mean3) * 100)/3;
+        if (duration > 1) score *= duration;
 
         value = factory.createObjectBuilder()
-                .add("score", score)
+                .add("score",  score)
                 .build();
 
         return value.toString();
@@ -216,22 +155,26 @@ public class Controller {
 
     @RequestMapping(value = "/getMeanOverOneMonth", method = RequestMethod.GET)
     public String getScoreOfTheMonth() {
+        //Mesure arbitraire
         int day = 15;
         int duration = 30 * day;
-        return getScoreForDuration(Integer.toString(duration));
+        return getScore(duration);
     }
 
     @RequestMapping(value = "/getMeanOverOneyear", method = RequestMethod.GET)
     public String getScoreOfTheYear() {
+        //Mesure arbitraire
         int day = 15;
         int duration = 365* day;
-        return getScoreForDuration(Integer.toString(duration));
+        return getScore(duration);
     }
 
     @RequestMapping(value = "/reset", method = RequestMethod.GET)
     public String reset() {
+        Event e = repository.findTopByOrderByIdDesc();
         repository.deleteAll();
         Controller.taskRunning = false;
+        repository.save(new Event(e.getValue1(), e.getValue2(),e.getValue3()));
         return "Reset OK";
     }
 
@@ -281,9 +224,6 @@ public class Controller {
                     LOG.info("");
                 });
 
-        if (!Controller.taskRunning){
-            executeAsynchronously();
-            Controller.taskRunning = true;
-        }
+
     }
 }
